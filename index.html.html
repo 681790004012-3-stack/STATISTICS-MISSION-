@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STATISTICS MISSION - สถิติพิชิตภารกิจ</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- MediaPipe Hands & Camera Utils -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --primary: #FF6B6B;
+            --secondary: #4ECDC4;
+            --accent: #FFE66D;
+            --dark: #2C3E50;
+            --light: #F7F9F9;
+            --purple: #9B59B6;
+            --font-main: 'Mali', cursive;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: var(--font-main);
+            overflow: hidden;
+            background-color: var(--dark);
+            color: var(--dark);
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Container & Canvas */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        video {
+            display: none;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, rgba(78, 205, 196, 0.92), rgba(255, 107, 107, 0.92));
+            z-index: 100;
+            transition: opacity 0.4s ease;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border-radius: 28px;
+            padding: 2.2rem 2.8rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            max-width: 92%;
+            width: 520px;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+        }
+
+        h1 {
+            font-size: 2.3rem;
+            color: var(--primary);
+            text-shadow: 2px 2px 0px white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white;
+            margin-bottom: 1.2rem;
+            line-height: 1.2;
+        }
+
+        h2 { 
+            font-size: 1.4rem; 
+            margin-bottom: 0.8rem; 
+            color: var(--dark); 
+        }
+
+        /* Control Mode Options */
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 1.2rem;
+        }
+
+        .mode-btn {
+            background: #fff;
+            border: 2px solid var(--secondary);
+            border-radius: 12px;
+            padding: 8px 16px;
+            font-family: var(--font-main);
+            font-weight: bold;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+        
+        /* Input & Controls */
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 18px;
+            font-size: 1.2rem;
+            font-family: var(--font-main);
+            border: 3px solid var(--secondary);
+            border-radius: 14px;
+            margin-bottom: 1.2rem;
+            text-align: center;
+            outline: none;
+            background: rgba(255, 255, 255, 0.95);
+        }
+        input[type="text"]:focus { border-color: var(--primary); }
+
+        .character-selection {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .char-btn {
+            font-size: 2.5rem;
+            background: white;
+            border: 3px solid transparent;
+            border-radius: 50%;
+            width: 68px;
+            height: 68px;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s, background-color 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .char-btn:hover { transform: scale(1.1); }
+        .char-btn.selected {
+            border-color: var(--primary);
+            background: var(--accent);
+            transform: scale(1.15);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            font-family: var(--font-main);
+            font-size: 1.3rem;
+            font-weight: bold;
+            padding: 14px 36px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #d93838, 0 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+            width: 100%;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #d93838, 0 5px 10px rgba(0,0,0,0.2);
+        }
+        
+        .btn:disabled {
+            background: #95a5a6;
+            box-shadow: 0 6px 0 #7f8c8d;
+            cursor: not-allowed;
+        }
+
+        /* In-Game UI */
+        #game-ui {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: none;
+            z-index: 50;
+            padding: 15px;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Top HUD */
+        .hud-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 10px;
+            pointer-events: auto;
+        }
+
+        .hud-box {
+            background: rgba(255, 255, 255, 0.92);
+            padding: 8px 18px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 3px solid var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: #fff;
+            border: 2px solid var(--dark);
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        .icon-btn:hover { transform: scale(1.1); }
+
+        /* Question Box */
+        .question-container {
+            background: rgba(255, 255, 255, 0.95);
+            border: 4px solid var(--primary);
+            border-radius: 22px;
+            padding: 16px 30px;
+            font-size: 1.6rem;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            max-width: 850px;
+            width: 90%;
+            margin-top: 5px;
+            position: relative;
+            pointer-events: auto;
+        }
+
+        .question-type {
+            font-size: 1rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        /* Combo Badge */
+        .combo-badge {
+            display: inline-block;
+            background: var(--purple);
+            color: white;
+            font-size: 0.9rem;
+            padding: 2px 10px;
+            border-radius: 12px;
+            margin-left: 8px;
+            animation: pulse 0.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+
+        /* 30s Timer Bar */
+        .timer-bar-container {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .timer-bar {
+            height: 100%;
+            background: var(--secondary);
+            width: 100%;
+            transition: width 0.2s linear, background-color 0.3s;
+        }
+
+        .timer-warning { background: var(--primary); }
+
+        .game-over-stats {
+            margin: 18px 0;
+            font-size: 1.2rem;
+            text-align: left;
+            background: rgba(255,255,255,0.65);
+            padding: 16px 20px;
+            border-radius: 16px;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 2px dashed #ddd;
+            padding-bottom: 6px;
+        }
+        .stat-row:last-child { border-bottom: none; margin-bottom: 0; }
+
+        .rank-badge {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-shadow: 2px 2px 0 #fff;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="overlay">
+        <div class="glass-panel">
+            <h1>STATISTICS MISSION<br>สถิติพิชิตภารกิจ</h1>
+            
+            <input type="text" id="player-name" placeholder="ชื่อผู้เล่น (เช่น น้องจอย)" maxlength="15">
+            
+            <h2>เลือกวิธีการควบคุม</h2>
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="ar">📷 โหมดกล้อง AR (ท่าทางมือ)</button>
+                <button class="mode-btn" data-mode="mouse">🖱️ โหมดเมาส์ / สัมผัส</button>
+            </div>
+
+            <h2>เลือกตัวละครของคุณ</h2>
+            <div class="character-selection">
+                <div class="char-btn selected" data-char="🐶">🐶</div>
+                <div class="char-btn" data-char="🐱">🐱</div>
+                <div class="char-btn" data-char="🐰">🐰</div>
+                <div class="char-btn" data-char="🦊">🦊</div>
+                <div class="char-btn" data-char="🐼">🐼</div>
+                <div class="char-btn" data-char="🦁">🦁</div>
+            </div>
+            
+            <button id="start-btn" class="btn">🚀 เริ่มภารกิจเลย!</button>
+        </div>
+    </div>
+
+    <!-- Main Game UI -->
+    <div id="game-ui">
+        <div class="hud-container">
+            <div class="hud-box">
+                <span id="ui-player-name">Player</span>
+                <span style="color: var(--primary)">⭐ <span id="ui-score">0</span></span>
+                <span id="ui-combo-container"></span>
+            </div>
+            <div class="hud-box">
+                <button id="mute-btn" class="icon-btn">🔊</button>
+                <span>⏱️ เวลา: <span id="ui-total-time">3:00</span></span>
+            </div>
+        </div>
+        
+        <div class="question-container">
+            <div class="question-type" id="ui-q-type">จงหาค่าเฉลี่ยเลขคณิต</div>
+            <div id="ui-question">ชุดข้อมูล: 2, 4, 6, 8, 10</div>
+            <div class="timer-bar-container">
+                <div class="timer-bar" id="ui-q-timer-bar"></div>
+            </div>
+            <div style="font-size:0.95rem; color: #555; margin-top:6px;">
+                เวลาคิดข้อนี้: <span id="ui-q-timer-text">30</span> วินาที
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="overlay" style="display: none;">
+        <div class="glass-panel">
+            <h1>หมดเวลา! ภารกิจเสร็จสิ้น</h1>
+            <h2 id="go-player-name">คุณ ...</h2>
+            
+            <div class="rank-badge" id="go-rank">RANK S</div>
+
+            <div class="game-over-stats">
+                <div class="stat-row">
+                    <span>คะแนนรวม:</span>
+                    <strong id="go-score" style="color: var(--primary); font-size:1.4rem;">0</strong>
+                </div>
+                <div class="stat-row">
+                    <span>✅ ตอบถูกต้อง:</span>
+                    <strong id="go-correct" style="color: var(--secondary)">0 ข้อ</strong>
+                </div>
+                <div class="stat-row">
+                    <span>❌ ตอบผิด / หมดเวลา:</span>
+                    <strong id="go-wrong" style="color: var(--primary)">0 ข้อ</strong>
+                </div>
+                <div class="stat-row">
+                    <span>🔥 ต่อเนื่องสูงสุด (Combo):</span>
+                    <strong id="go-max-combo" style="color: var(--purple)">0 ครั้ง</strong>
+                </div>
+            </div>
+            
+            <button id="restart-btn" class="btn">🔄 เล่นอีกครั้ง</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * 1. AUDIO SYNTHESIZER (Web Audio API)
+ */
+class AudioManager {
+    constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.bgmInterval = null;
+        this.notes = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63]; // C E G C G E
+        this.noteIndex = 0;
+    }
+
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        return this.isMuted;
+    }
+
+    playBGM() {
+        if (this.bgmInterval) clearInterval(this.bgmInterval);
+        this.bgmInterval = setInterval(() => {
+            if(this.ctx && !this.isMuted) this._playNote(this.notes[this.noteIndex], 0.1, 'sine');
+            this.noteIndex = (this.noteIndex + 1) % this.notes.length;
+        }, 320);
+    }
+
+    stopBGM() {
+        if (this.bgmInterval) clearInterval(this.bgmInterval);
+    }
+
+    playCorrect() {
+        if(!this.ctx || this.isMuted) return;
+        this._playTone(523.25, 'sine', 0.1);
+        setTimeout(() => this._playTone(659.25, 'sine', 0.1), 80);
+        setTimeout(() => this._playTone(783.99, 'sine', 0.1), 160);
+        setTimeout(() => this._playTone(1046.50, 'sine', 0.3), 240);
+    }
+
+    playWrong() {
+        if(!this.ctx || this.isMuted) return;
+        this._playTone(180, 'sawtooth', 0.25, true);
+    }
+
+    playTick() {
+        if(!this.ctx || this.isMuted) return;
+        this._playTone(880, 'square', 0.04);
+    }
+
+    _playNote(freq, dur, type) {
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + dur);
+        } catch(e){}
+    }
+
+    _playTone(freq, type, duration, isDrop = false) {
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            if (isDrop) {
+                osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + duration);
+            }
+            gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        } catch(e){}
+    }
+}
+
+/**
+ * 2. QUESTION & MATH GENERATOR (Statistics)
+ */
+class QuestionManager {
+    constructor() {
+        this.types = ['MEAN', 'MEDIAN', 'MODE', 'RANGE'];
+    }
+
+    generate() {
+        const type = this.types[Math.floor(Math.random() * this.types.length)];
+        let data = [];
+        let correctAnswer = 0;
+        let questionText = "";
+        let typeText = "";
+
+        if (type === 'MEAN') {
+            typeText = "จงหาค่าเฉลี่ยเลขคณิต";
+            let sum = 0;
+            for(let i = 0; i < 4; i++) {
+                let n = Math.floor(Math.random() * 14) + 2;
+                data.push(n);
+                sum += n;
+            }
+            let remainder = sum % 5;
+            let lastN = (remainder === 0) ? 5 : (5 - remainder);
+            data.push(lastN);
+            correctAnswer = (sum + lastN) / 5;
+            data = data.sort(() => Math.random() - 0.5);
+            questionText = `ชุดข้อมูล: ${data.join(', ')}`;
+            
+        } else if (type === 'MEDIAN') {
+            typeText = "จงหามัธยฐาน (ค่ากลาง)";
+            for(let i = 0; i < 5; i++) data.push(Math.floor(Math.random() * 20) + 1);
+            let sorted = [...data].sort((a, b) => a - b);
+            correctAnswer = sorted[2];
+            questionText = `ชุดข้อมูล: ${data.join(', ')}`;
+
+        } else if (type === 'MODE') {
+            typeText = "จงหาฐานนิยม (ค่าที่ซ้ำมากที่สุด)";
+            let baseData = [];
+            while(baseData.length < 3) {
+                let r = Math.floor(Math.random() * 15) + 1;
+                if(!baseData.includes(r)) baseData.push(r);
+            }
+            correctAnswer = baseData[0];
+            data = [correctAnswer, correctAnswer, correctAnswer, baseData[1], baseData[2]];
+            data = data.sort(() => Math.random() - 0.5);
+            questionText = `ชุดข้อมูล: ${data.join(', ')}`;
+
+        } else if (type === 'RANGE') {
+            typeText = "จงหาพิสัย (มากสุด - น้อยสุด)";
+            for(let i = 0; i < 5; i++) data.push(Math.floor(Math.random() * 25) + 1);
+            let sorted = [...data].sort((a, b) => a - b);
+            correctAnswer = sorted[sorted.length - 1] - sorted[0];
+            questionText = `ชุดข้อมูล: ${data.join(', ')}`;
+        }
+
+        // Generate 3 unique distractors
+        let answers = [{ val: correctAnswer, correct: true }];
+        let attempts = 0;
+        while(answers.length < 4 && attempts < 60) {
+            let offset = Math.floor(Math.random() * 9) - 4;
+            if(offset === 0) offset = 5;
+            let fakeAns = correctAnswer + offset;
+            if (fakeAns >= 0 && !answers.some(a => a.val === fakeAns)) {
+                answers.push({ val: fakeAns, correct: false });
+            }
+            attempts++;
+        }
+        
+        answers = answers.sort(() => Math.random() - 0.5);
+        return { typeText, questionText, answers };
+    }
+}
+
+/**
+ * 3. GAME OBJECTS
+ */
+class Fruit {
+    constructor(x, y, data, canvasW, canvasH) {
+        this.x = x;
+        this.y = y;
+        this.r = 45;
+        this.data = data;
+        this.dx = (Math.random() - 0.5) * 3.5;
+        this.dy = (Math.random() - 0.5) * 3.5;
+        const fruits = ['🍎', '🍊', '🍇', '🍉', '🍓', '🍍', '🍑'];
+        this.emoji = fruits[Math.floor(Math.random() * fruits.length)];
+        this.canvasW = canvasW;
+        this.canvasH = canvasH;
+        this.scale = 0;
+        this.targetScale = 1;
+    }
+
+    update() {
+        if (this.scale < this.targetScale) this.scale += 0.08;
+
+        this.x += this.dx;
+        this.y += this.dy;
+
+        let topBoundary = 160; 
+        if (this.x < this.r) { this.x = this.r; this.dx *= -1; }
+        if (this.x > this.canvasW - this.r) { this.x = this.canvasW - this.r; this.dx *= -1; }
+        if (this.y < topBoundary + this.r) { this.y = topBoundary + this.r; this.dy *= -1; }
+        if (this.y > this.canvasH - this.r) { this.y = this.canvasH - this.r; this.dy *= -1; }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.scale, this.scale);
+        
+        ctx.shadowColor = 'rgba(0,0,0,0.25)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 6;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, this.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#4ECDC4';
+        ctx.stroke();
+
+        ctx.shadowColor = 'transparent';
+
+        ctx.font = '34px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.emoji, 0, -10);
+        
+        ctx.font = 'bold 26px Mali';
+        ctx.fillStyle = '#2C3E50';
+        ctx.fillText(this.data.val, 0, 16);
+
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.dx = (Math.random() - 0.5) * 12;
+        this.dy = (Math.random() - 0.5) * 12 - 4;
+        this.life = 1.0;
+        this.color = color;
+        this.size = Math.random() * 9 + 4;
+    }
+    update() {
+        this.x += this.dx;
+        this.y += this.dy;
+        this.dy += 0.4;
+        this.life -= 0.025;
+    }
+    draw(ctx) {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+class FloatingText {
+    constructor(x, y, text, color) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.color = color;
+        this.life = 1.0;
+    }
+    update() {
+        this.y -= 2.2;
+        this.life -= 0.02;
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.font = 'bold 36px Mali';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = this.color;
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 5;
+        ctx.strokeText(this.text, this.x, this.y);
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+/**
+ * 4. MAIN GAME ENGINE
+ */
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('game-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.video = document.getElementById('webcam');
+        
+        this.audio = new AudioManager();
+        this.qm = new QuestionManager();
+        
+        this.state = 'START';
+        this.controlMode = 'ar'; // 'ar' or 'mouse'
+        this.playerName = 'น้องจอย';
+        this.character = '🐶';
+        
+        this.score = 0;
+        this.correctCount = 0;
+        this.wrongCount = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        
+        this.totalTime = 180; // 3 minutes
+        this.qTimeMax = 30;
+        this.qTimeLeft = 30;
+        this.lastTime = 0;
+        
+        this.fruits = [];
+        this.particles = [];
+        this.floatingTexts = [];
+        
+        this.rawFingerPos = { x: -100, y: -100 };
+        this.fingerPos = { x: -100, y: -100 };
+        this.hands = null;
+        this.camera = null;
+
+        this.initDOM();
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupPointerListeners();
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    setupPointerListeners() {
+        const updatePos = (x, y) => {
+            if(this.controlMode === 'mouse' && this.state === 'PLAYING') {
+                this.rawFingerPos.x = x;
+                this.rawFingerPos.y = y;
+            }
+        };
+
+        window.addEventListener('mousemove', (e) => updatePos(e.clientX, e.clientY));
+        window.addEventListener('touchmove', (e) => {
+            if(e.touches.length > 0) {
+                updatePos(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+        window.addEventListener('touchstart', (e) => {
+            if(e.touches.length > 0) {
+                updatePos(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+    }
+
+    initDOM() {
+        // Mode Selector
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.controlMode = btn.dataset.mode;
+            });
+        });
+
+        // Character Selection
+        const charBtns = document.querySelectorAll('.char-btn');
+        charBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                charBtns.forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this.character = btn.dataset.char;
+            });
+        });
+
+        // Mute Button
+        const muteBtn = document.getElementById('mute-btn');
+        muteBtn.addEventListener('click', () => {
+            const isMuted = this.audio.toggleMute();
+            muteBtn.innerText = isMuted ? '🔇' : '🔊';
+        });
+
+        // Start Button
+        const startBtn = document.getElementById('start-btn');
+        startBtn.addEventListener('click', async () => {
+            const nameInput = document.getElementById('player-name').value.trim();
+            this.playerName = nameInput || 'ผู้เล่นนิรนาม';
+            
+            this.audio.init();
+
+            if (this.controlMode === 'ar') {
+                startBtn.innerText = "⏳ กำลังโหลดระบบกล้อง AR...";
+                startBtn.disabled = true;
+                const success = await this.initAR();
+                if (!success) return;
+            }
+            
+            this.transitionToGame();
+        });
+
+        // Restart Button
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            document.getElementById('game-over-screen').style.display = 'none';
+            this.startGame();
+        });
+    }
+
+    async initAR() {
+        try {
+            this.hands = new Hands({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+            
+            this.hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.65,
+                minTrackingConfidence: 0.65,
+                selfieMode: true
+            });
+
+            this.hands.onResults((results) => {
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    const indexTip = results.multiHandLandmarks[0][8];
+                    this.rawFingerPos.x = indexTip.x * this.canvas.width;
+                    this.rawFingerPos.y = indexTip.y * this.canvas.height;
+                } else {
+                    this.rawFingerPos.x = -100;
+                    this.rawFingerPos.y = -100;
+                }
+            });
+
+            this.camera = new Camera(this.video, {
+                onFrame: async () => {
+                    if(this.state === 'PLAYING' && this.controlMode === 'ar') {
+                        await this.hands.send({image: this.video});
+                    }
+                },
+                width: 640,
+                height: 480
+            });
+
+            await this.camera.start();
+            return true;
+
+        } catch (err) {
+            alert("ไม่สามารถเปิดใช้งานกล้องได้ เปลี่ยนเป็นโหมดเมาส์/สัมผัสให้คุณอัตโนมัติครับ");
+            this.controlMode = 'mouse';
+            document.getElementById('start-btn').innerText = "🚀 เริ่มภารกิจเลย!";
+            document.getElementById('start-btn').disabled = false;
+            return true;
+        }
+    }
+
+    transitionToGame() {
+        const startScreen = document.getElementById('start-screen');
+        startScreen.style.opacity = '0';
+        setTimeout(() => {
+            startScreen.style.display = 'none';
+            this.startGame();
+        }, 400);
+    }
+
+    startGame() {
+        this.state = 'PLAYING';
+        this.score = 0;
+        this.correctCount = 0;
+        this.wrongCount = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.totalTime = 180;
+        
+        document.getElementById('game-ui').style.display = 'flex';
+        document.getElementById('ui-player-name').innerText = this.playerName;
+        
+        this.audio.playBGM();
+        this.nextQuestion();
+        
+        this.lastTime = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
+    }
+
+    nextQuestion() {
+        const q = this.qm.generate();
+        document.getElementById('ui-q-type').innerText = q.typeText;
+        document.getElementById('ui-question').innerText = q.questionText;
+        
+        this.qTimeLeft = this.qTimeMax;
+        this.updateQTimerUI();
+        
+        this.fruits = [];
+        const spawnY = this.canvas.height / 2 + 30;
+        const spacing = this.canvas.width / (q.answers.length + 1);
+        
+        q.answers.forEach((ans, i) => {
+            const px = spacing * (i + 1);
+            this.fruits.push(new Fruit(px, spawnY, ans, this.canvas.width, this.canvas.height));
+        });
+    }
+
+    updateQTimerUI() {
+        const text = Math.ceil(this.qTimeLeft);
+        document.getElementById('ui-q-timer-text').innerText = text;
+        const bar = document.getElementById('ui-q-timer-bar');
+        const pct = (this.qTimeLeft / this.qTimeMax) * 100;
+        bar.style.width = `${pct}%`;
+        
+        if(this.qTimeLeft <= 5) {
+            bar.classList.add('timer-warning');
+            if (Math.floor(this.qTimeLeft) < Math.floor(this.qTimeLeft + 0.05)) {
+               this.audio.playTick();
+            }
+        } else {
+            bar.classList.remove('timer-warning');
+        }
+    }
+
+    calculateRank() {
+        if(this.score >= 120) return "RANK S 🔥";
+        if(this.score >= 80) return "RANK A 🌟";
+        if(this.score >= 40) return "RANK B 👍";
+        return "RANK C 💪";
+    }
+
+    endGame() {
+        this.state = 'GAMEOVER';
+        this.audio.stopBGM();
+        document.getElementById('game-ui').style.display = 'none';
+        
+        const go = document.getElementById('game-over-screen');
+        go.style.display = 'flex';
+        go.style.opacity = '1';
+        
+        document.getElementById('go-player-name').innerText = `ผู้เล่น: ${this.playerName}`;
+        document.getElementById('go-score').innerText = this.score;
+        document.getElementById('go-correct').innerText = `${this.correctCount} ข้อ`;
+        document.getElementById('go-wrong').innerText = `${this.wrongCount} ข้อ`;
+        document.getElementById('go-max-combo').innerText = `${this.maxCombo} ครั้ง`;
+        document.getElementById('go-rank').innerText = this.calculateRank();
+    }
+
+    loop(timestamp) {
+        if(this.state !== 'PLAYING') return;
+
+        const dt = (timestamp - this.lastTime) / 1000;
+        this.lastTime = timestamp;
+
+        this.update(dt);
+        this.draw();
+
+        requestAnimationFrame((t) => this.loop(t));
+    }
+
+    update(dt) {
+        // Smooth Cursor Lerp
+        this.fingerPos.x += (this.rawFingerPos.x - this.fingerPos.x) * 0.25;
+        this.fingerPos.y += (this.rawFingerPos.y - this.fingerPos.y) * 0.25;
+
+        // Total Timer
+        this.totalTime -= dt;
+        if(this.totalTime <= 0) {
+            this.endGame();
+            return;
+        }
+        
+        const mins = Math.floor(this.totalTime / 60);
+        const secs = Math.floor(this.totalTime % 60).toString().padStart(2, '0');
+        document.getElementById('ui-total-time').innerText = `${mins}:${secs}`;
+
+        // Question Timer
+        this.qTimeLeft -= dt;
+        this.updateQTimerUI();
+        if(this.qTimeLeft <= 0) {
+            this.score = Math.max(0, this.score - 5);
+            this.wrongCount++;
+            this.combo = 0;
+            this.updateComboUI();
+            this.audio.playWrong();
+            this.floatingTexts.push(new FloatingText(this.canvas.width/2, this.canvas.height/2, "หมดเวลา! -5", "#FF6B6B"));
+            this.updateScoreUI();
+            this.nextQuestion();
+        }
+
+        // Fruits Collision
+        const charRadius = 45;
+        for (let i = this.fruits.length - 1; i >= 0; i--) {
+            let f = this.fruits[i];
+            f.update();
+
+            let dist = Math.hypot(this.fingerPos.x - f.x, this.fingerPos.y - f.y);
+            if (dist < f.r + charRadius) {
+                this.handleAnswer(f);
+                break;
+            }
+        }
+
+        // FX Updates
+        this.particles.forEach(p => p.update());
+        this.particles = this.particles.filter(p => p.life > 0);
+        
+        this.floatingTexts.forEach(t => t.update());
+        this.floatingTexts = this.floatingTexts.filter(t => t.life > 0);
+    }
+
+    handleAnswer(fruit) {
+        if (fruit.data.correct) {
+            this.combo++;
+            if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+            
+            let bonus = Math.min(this.combo * 2, 10);
+            let earned = 10 + bonus;
+            
+            this.score += earned;
+            this.correctCount++;
+            this.audio.playCorrect();
+            this.spawnConfetti(fruit.x, fruit.y);
+            
+            let msg = this.combo > 1 ? `ถูกต้อง! +${earned} (Combo x${this.combo})` : `ยอดเยี่ยม! +${earned}`;
+            this.floatingTexts.push(new FloatingText(fruit.x, fruit.y - 50, msg, "#4ECDC4"));
+        } else {
+            this.score = Math.max(0, this.score - 5);
+            this.wrongCount++;
+            this.combo = 0;
+            this.audio.playWrong();
+            this.floatingTexts.push(new FloatingText(fruit.x, fruit.y - 50, "ลองใหม่นะ! -5", "#FF6B6B"));
+        }
+        
+        this.updateComboUI();
+        this.updateScoreUI();
+        this.nextQuestion();
+    }
+
+    updateComboUI() {
+        const container = document.getElementById('ui-combo-container');
+        if (this.combo > 1) {
+            container.innerHTML = `<span class="combo-badge">🔥 Combo x${this.combo}</span>`;
+        } else {
+            container.innerHTML = '';
+        }
+    }
+
+    updateScoreUI() {
+        const el = document.getElementById('ui-score');
+        el.innerText = this.score;
+        el.style.transform = 'scale(1.4)';
+        setTimeout(() => el.style.transform = 'scale(1)', 200);
+    }
+
+    spawnConfetti(x, y) {
+        const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FFFFFF', '#9B59B6'];
+        for(let i = 0; i < 35; i++) {
+            this.particles.push(new Particle(x, y, colors[Math.floor(Math.random() * colors.length)]));
+        }
+    }
+
+    draw() {
+        // Draw Camera Background or Clean Canvas Gradient
+        if (this.controlMode === 'ar' && this.video.readyState === 4) {
+            this.ctx.save();
+            this.ctx.scale(-1, 1);
+            this.ctx.drawImage(this.video, -this.canvas.width, 0, this.canvas.width, this.canvas.height);
+            this.ctx.restore();
+
+            this.ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            let grad = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+            grad.addColorStop(0, '#2C3E50');
+            grad.addColorStop(1, '#34495E');
+            this.ctx.fillStyle = grad;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        // Draw Fruits
+        this.fruits.forEach(f => f.draw(this.ctx));
+
+        // Draw Player Character Cursor
+        if (this.fingerPos.x > 0 && this.fingerPos.y > 0) {
+            this.drawCharacter(this.fingerPos.x, this.fingerPos.y);
+        }
+
+        // Draw Particles & Floating Texts
+        this.particles.forEach(p => p.draw(this.ctx));
+        this.floatingTexts.forEach(t => t.draw(this.ctx));
+    }
+
+    drawCharacter(x, y) {
+        const ctx = this.ctx;
+        ctx.save();
+        
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
+        ctx.shadowBlur = 20;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, 42, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#FF6B6B';
+        ctx.stroke();
+
+        ctx.shadowColor = 'transparent';
+
+        ctx.font = '55px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.character, x, y + 4);
+        
+        ctx.restore();
+    }
+}
+
+// Start Game Engine on load
+window.onload = () => {
+    new Game();
+};
+</script>
+</body>
+</html>
